@@ -4,7 +4,7 @@ installed. To run the server, start mongod and redis. Then, run npm start.
 
 I ran the following to run on Ubuntu:
 ```
-$ redis &
+$ redis-server &
 $ systemctl start mongod
 $ npm start
 ```

@@ -2,44 +2,46 @@ const express = require('express');
 const graphqlHttp = require('express-graphql');
 const expressJwt = require('express-jwt');
 const { buildSchema } = require('graphql');
-const Backend = require('./backend');
 const { MongoClient, ObjectId } = require('mongodb');
-const nodemailer = require('nodemailer');
 const Redis = require('ioredis');
+const nodemailer = require('nodemailer');
+const Backend = require('./backend');
 
 /* Settings */
 const mongoPort = 27017;
 const graphQlPort = 4000;
-const blogDb = "blog";
+const blogDb = 'blog';
 const graphiql = true;
+
+/* Set up these settings to allow sending emails. */
+const enableEmailNotifications = false;
+const emailServerSettings = {
+  host: 'host',
+  name: 'server name',
+  port: 465,
+  secure: true,
+  auth: {
+    user: 'user',
+    pass: 'password',
+  },
+  pool: true,
+};
+const emailDefaultSettings = {
+  from: {
+    name: 'Blog Host',
+    address: 'no-reply@playcannon.com',
+  },
+};
 
 const backend = new Backend(
   new Redis(),
-/* Mailing is currently disabled. To allow mailing, configure it here and
- * uncomment. I tested with my own email. */
-/*
-  nodemailer.createTransport(
-  {
-    host: "host",
-    name: "server name",
-    port: 465,
-    secure: true,
-    auth: {
-      user: "user",
-      pass: "password"
-    },
-    pool: true
-  },
-  {
-    from: {
-      name: "Blog Host",
-      address: "no-reply@playcannon.com"
-    }
-  })*/
+  enableEmailNotifications
+    ? nodemailer.createTransport(emailServerSettings, emailDefaultSettings)
+    : null,
 );
 
 /* graphQL Schema. */
-var schema = buildSchema(`
+const schema = buildSchema(`
 
   scalar Date
 
@@ -119,76 +121,75 @@ var schema = buildSchema(`
 `);
 
 /* GraphQl callbacks. */
-var root = {
-  createUser: (args, context) =>
-    backend.createUser(
-      context,
-      args.username,
-      args.password,
-      args.email),
-  authenticateUser: (args, context) =>
-    backend.authenticateUser(
-      context,
-      args.username,
-      args.password),
-  createPost: (args, context) =>
-    backend.createPost(
-      context,
-      args.text,
-      args.responseTo ? ObjectId(args.responseTo) : null),
-  editPost: (args, context) =>
-    backend.editPost(
-      context,
-      args.post ? ObjectId(args.post) : null,
-      args.text),
-  deletePost: (args, context) =>
-    backend.deletePost(
-      context,
-      args.post ? ObjectId(args.post) : null),
-  getAllPosts: (args, context) =>
-    backend.getAllPosts(
-      context,
-      args.user),
-  getPosts: (args, context) =>
-    backend.getPosts(
-      context,
-      args.user),
-  blogs: (args, context) =>
-    backend.getAllBlogs(context),
-  userSettings: (args, context) =>
-    backend.getUserSettings(context),
-  updateUserSettings: (args, context) =>
-    backend.updateUserSettings(context, args.settings)
-}
+const root = {
+  createUser: (args, context) => backend.createUser(
+    context,
+    args.username,
+    args.password,
+    args.email,
+  ),
+  authenticateUser: (args, context) => backend.authenticateUser(
+    context,
+    args.username,
+    args.password,
+  ),
+  createPost: (args, context) => backend.createPost(
+    context,
+    args.text,
+    args.responseTo ? ObjectId(args.responseTo) : null,
+  ),
+  editPost: (args, context) => backend.editPost(
+    context,
+    args.post ? ObjectId(args.post) : null,
+    args.text,
+  ),
+  deletePost: (args, context) => backend.deletePost(
+    context,
+    args.post ? ObjectId(args.post) : null,
+  ),
+  getAllPosts: (args, context) => backend.getAllPosts(
+    context,
+    args.user,
+  ),
+  getPosts: (args, context) => backend.getPosts(
+    context,
+    args.user,
+  ),
+  blogs: (args, context) => backend.getAllBlogs(context),
+  userSettings: (args, context) => backend.getUserSettings(context),
+  updateUserSettings: (args, context) => backend.updateUserSettings(context, args.settings),
+};
 
 /* Create the express webserver. Of course, if this were in production we would
  * definitely want to use TLS, but just a regular express webserver will due for
  * now. Alternatively we could use a proxy server. */
-var app = express();
+const app = express();
 
 /* Using expressJwt to parse the JWT from the user. If one is provided, its data
  * will be stored in context.user. */
 app.use(expressJwt({
   secret: backend.secret,
-  credentialsRequired: false
+  credentialsRequired: false,
 }));
 
 /* Use the graphQL schema we created. */
 app.use('/graphql', graphqlHttp({
-  schema: schema,
+  schema,
   rootValue: root,
-  graphiql
+  graphiql,
 }));
 
 
-const client = MongoClient(
+const mongoClient = MongoClient(
   `mongodb://localhost:${mongoPort}`,
-  { useUnifiedTopology: true });
+  { useUnifiedTopology: true },
+);
 
-client.connect().then((client) => {
+mongoClient.connect().then((client) => {
   backend.connectToDatabase(client.db(blogDb));
-  app.listen(graphQlPort,
-    () => console.log(`Now browse to localhost:4000/graphql`));
+  app.listen(graphQlPort, () => {});
+}).catch((err) => {
+  throw err;
 });
 
 module.exports = app;
