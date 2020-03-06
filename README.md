@@ -10,3 +10,8 @@ $ npm start
 ```
 
 To run the frontend, see the frontend git project.
+
+## GraphiQL
+This project uses GraphQL for the API. You can run an interactive 'GraphiQL'
+session by browsing to http://localhost:4000/graphiql. Note that the `graphql`
+setting must be set to true in app.js for this to work.
