@@ -11,6 +11,7 @@ const Redis = require('ioredis');
 const mongoPort = 27017;
 const graphQlPort = 4000;
 const blogDb = "blog";
+const graphiql = true;
 
 const backend = new Backend(
   new Redis(),
@@ -176,7 +177,7 @@ app.use(expressJwt({
 app.use('/graphql', graphqlHttp({
   schema: schema,
   rootValue: root,
-  graphiql: true
+  graphiql
 }));
 
 
